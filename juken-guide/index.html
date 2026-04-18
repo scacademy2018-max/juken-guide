@@ -5,20 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>受験戦略ガイド</title>
   <style>
-    * {
-      box-sizing: border-box;
-      -webkit-tap-highlight-color: transparent;
-    }
-
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
     body {
       margin: 0;
       background: #000;
       color: #fff;
-      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans",
-        "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic", sans-serif;
       text-align: center;
     }
-
     .viewer {
       max-width: 700px;
       margin: 0 auto;
@@ -28,33 +22,39 @@
       justify-content: center;
       padding: 12px 12px 24px;
     }
-
     .book-area {
       position: relative;
       width: 100%;
       overflow: hidden;
       border-radius: 12px;
       background: #111;
-      box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35);
+      box-shadow: 0 6px 24px rgba(0,0,0,0.35);
+      min-height: 300px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       touch-action: pan-y;
     }
-
     .book-area img {
       width: 100%;
       display: block;
       border-radius: 12px;
       user-select: none;
       -webkit-user-drag: none;
-      pointer-events: none;
     }
-
+    .hidden { display: none !important; }
+    .status {
+      padding: 24px;
+      color: #ddd;
+      line-height: 1.7;
+      font-size: 14px;
+      white-space: pre-wrap;
+    }
     .page-info {
       margin-top: 12px;
       font-size: 14px;
       color: #ddd;
-      letter-spacing: 0.03em;
     }
-
     .controls {
       display: flex;
       gap: 10px;
@@ -62,7 +62,6 @@
       margin-top: 14px;
       flex-wrap: wrap;
     }
-
     button {
       appearance: none;
       border: none;
@@ -75,49 +74,27 @@
       background: #ff7a00;
       color: #fff;
     }
-
     button:disabled {
       background: #555;
       color: #aaa;
       cursor: not-allowed;
     }
-
     .hint {
       margin-top: 10px;
       font-size: 12px;
       color: #999;
     }
-
-    .swipe-indicator {
-      position: absolute;
-      left: 50%;
-      bottom: 10px;
-      transform: translateX(-50%);
-      font-size: 12px;
-      color: rgba(255,255,255,0.7);
-      background: rgba(0,0,0,0.35);
-      padding: 6px 10px;
-      border-radius: 999px;
-      pointer-events: none;
-    }
-
     @media (max-width: 480px) {
-      .viewer {
-        padding: 8px 8px 20px;
-      }
-
-      button {
-        flex: 1 1 0;
-        min-width: 0;
-      }
+      .viewer { padding: 8px 8px 20px; }
+      button { flex: 1 1 0; min-width: 0; }
     }
   </style>
 </head>
 <body>
   <div class="viewer">
     <div class="book-area" id="bookArea">
-      <img id="pageImage" src="page1.png" alt="受験戦略ガイド 1ページ目" />
-      <div class="swipe-indicator">← スワイプでページ移動 →</div>
+      <img id="pageImage" alt="受験戦略ガイド" class="hidden" />
+      <div id="status" class="status">読み込み中...</div>
     </div>
 
     <div class="page-info" id="pageInfo">1 / 10</div>
@@ -135,31 +112,73 @@
     const totalPages = 10;
 
     const pageImage = document.getElementById("pageImage");
+    const statusBox = document.getElementById("status");
     const pageInfo = document.getElementById("pageInfo");
     const prevBtn = document.getElementById("prevBtn");
     const nextBtn = document.getElementById("nextBtn");
     const bookArea = document.getElementById("bookArea");
 
-    function updatePage() {
-      pageImage.src = `page${currentPage}.png`;
-      pageImage.alt = `受験戦略ガイド ${currentPage}ページ目`;
-      pageInfo.textContent = `${currentPage} / ${totalPages}`;
+    function fileName(page) {
+      return `page${page}.png`;
+    }
 
+    function showStatus(text) {
+      statusBox.textContent = text;
+      statusBox.classList.remove("hidden");
+      pageImage.classList.add("hidden");
+    }
+
+    function showImage(src, alt) {
+      pageImage.src = src;
+      pageImage.alt = alt;
+      pageImage.classList.remove("hidden");
+      statusBox.classList.add("hidden");
+    }
+
+    function updateButtons() {
       prevBtn.disabled = currentPage === 1;
       nextBtn.disabled = currentPage === totalPages;
+      pageInfo.textContent = `${currentPage} / ${totalPages}`;
+    }
+
+    function loadPage() {
+      updateButtons();
+      const src = fileName(currentPage);
+      showStatus(`画像を読み込み中...\n${src}`);
+
+      const testImg = new Image();
+      testImg.onload = () => {
+        showImage(src, `受験戦略ガイド ${currentPage}ページ目`);
+      };
+      testImg.onerror = () => {
+        showStatus(
+`画像を読み込めませんでした。
+
+今探しているファイル:
+${src}
+
+確認すること:
+1. index.html と page1.png〜page10.png が同じ階層にあるか
+2. ファイル名が完全一致しているか
+   例: page1.png
+   ダメ: page01.png / Page1.png / page1.PNG
+3. GitHub Pages の公開先が main / root になっているか`
+        );
+      };
+      testImg.src = src;
     }
 
     function nextPage() {
       if (currentPage < totalPages) {
         currentPage++;
-        updatePage();
+        loadPage();
       }
     }
 
     function prevPage() {
       if (currentPage > 1) {
         currentPage--;
-        updatePage();
+        loadPage();
       }
     }
 
@@ -173,22 +192,13 @@
 
     bookArea.addEventListener("touchend", (e) => {
       touchEndX = e.changedTouches[0].clientX;
-      handleSwipe();
+      const diff = touchEndX - touchStartX;
+      if (Math.abs(diff) < swipeThreshold) return;
+      if (diff < 0) nextPage();
+      else prevPage();
     }, { passive: true });
 
-    function handleSwipe() {
-      const diff = touchEndX - touchStartX;
-
-      if (Math.abs(diff) < swipeThreshold) return;
-
-      if (diff < 0) {
-        nextPage();
-      } else {
-        prevPage();
-      }
-    }
-
-    updatePage();
+    loadPage();
   </script>
 </body>
 </html>
